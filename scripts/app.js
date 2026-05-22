@@ -275,13 +275,17 @@ function renderMessage(m) {
 function renderInto(el, text) {
   el.innerHTML = renderMarkdownSync(text);
   attachCodeCopyButtons(el);
-  // Upgrade once async deps are ready
-  renderMarkdown(text).then((html) => {
-    if (el.dataset.lastText === text) return; // unchanged
-    el.dataset.lastText = text;
-    el.innerHTML = html;
-    attachCodeCopyButtons(el);
-  });
+  // Upgrade once async deps are ready. Swallow rejections (e.g. CDN
+  // unreachable) so they don't surface as unhandled promise errors —
+  // the sync renderer already provided a usable fallback.
+  renderMarkdown(text)
+    .then((html) => {
+      if (el.dataset.lastText === text) return; // unchanged
+      el.dataset.lastText = text;
+      el.innerHTML = html;
+      attachCodeCopyButtons(el);
+    })
+    .catch(() => {});
 }
 
 function scrollToEnd() {
@@ -556,15 +560,15 @@ async function unloadLocalModel() {
 async function testApi() {
   els.apiStatus.className = "status-pill";
   els.apiStatus.textContent = "Проверка…";
-  // configure from current form values (without committing)
-  state.engine.configureCloud({
-    providerKey: els.providerSelect.value,
-    baseUrl: els.baseUrlInput.value.trim(),
-    apiKey: els.apiKeyInput.value.trim(),
-    model: els.cloudModelInput.value.trim(),
-  });
+  // Probe a transient config — do NOT mutate the engine's saved config,
+  // so cancelling the dialog leaves the existing setup intact.
   try {
-    await state.engine.pingCloud();
+    await state.engine.pingCloudConfig({
+      providerKey: els.providerSelect.value,
+      baseUrl: els.baseUrlInput.value.trim(),
+      apiKey: els.apiKeyInput.value.trim(),
+      model: els.cloudModelInput.value.trim(),
+    });
     els.apiStatus.className = "status-pill is-ok";
     els.apiStatus.textContent = "OK · подключено";
   } catch (err) {

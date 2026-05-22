@@ -360,6 +360,17 @@ export class Engine {
     return this.cloud.ping();
   }
 
+  /**
+   * Ping a transient cloud config WITHOUT mutating `this.cloud`.
+   * Used by the Settings dialog's "Test connection" button so that
+   * cancelling the dialog doesn't poison the engine's saved config.
+   */
+  async pingCloudConfig(cfg) {
+    const probe = new CloudBackend();
+    probe.configure(cfg);
+    return probe.ping();
+  }
+
   ready() {
     if (this.mode === "local") return !!this.local.engine;
     return this.cloud.ready();
