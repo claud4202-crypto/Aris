@@ -201,9 +201,10 @@
           <div class="welcome" id="welcome">
             <h2>Привет! Я Aris — AI-помощник по коду.</h2>
             <p class="welcome__sub">
-              Работает сразу, без ключа — через бесплатный публичный
-              шлюз. Можно подключить локальную модель (приватно, в браузере)
-              или мощный платный API в Настройках.
+              Без ключа: модель запускается прямо в браузере (бесплатно,
+              приватно). Откройте Настройки → «Загрузить модель» — первый
+              запуск качает веса (~1.8 ГБ, 2–5 мин), дальше всё мгновенно.
+              Если нужен топовый код-ассистент — подключите облачный API.
             </p>
             <div class="suggestions">
               <button class="chip" data-prompt="Напиши на Python функцию, которая возвращает n-ое число Фибоначчи за O(log n) с быстрым возведением матрицы в степень. Добавь юнит-тесты.">
@@ -359,19 +360,22 @@
 
           <section class="tab-panel" data-panel="cloud">
             <p class="help" id="providerHelp">
-              <strong>Pollinations</strong> — бесплатный публичный шлюз
-              (без ключа). Работает сразу. Если нужно мощнее или приватнее —
-              переключитесь на платный провайдер ниже и вставьте свой ключ.
+              <strong>OpenRouter</strong> даёт лучший бесплатный код-ассистент:
+              на <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>
+              создайте ключ (без карты), и доступны Qwen2.5-Coder 32B,
+              Llama 3.3 70B, DeepSeek-V3 — мощнее любой локальной модели.
+              Pollinations оставлен как опция, но сейчас отказывает браузерным
+              запросам (возвращает рекламу платного тарифа вместо ответа).
             </p>
             <label class="field">
               <span>Провайдер</span>
               <select id="providerSelect">
-                <option value="pollinations">Pollinations (без ключа)</option>
-                <option value="openrouter">OpenRouter</option>
+                <option value="openrouter">OpenRouter (рекомендую, бесплатный ключ)</option>
                 <option value="openai">OpenAI</option>
                 <option value="deepseek">DeepSeek</option>
                 <option value="groq">Groq</option>
                 <option value="together">Together AI</option>
+                <option value="pollinations">Pollinations (без ключа, может не работать)</option>
                 <option value="custom">Другой (свой URL)</option>
               </select>
             </label>

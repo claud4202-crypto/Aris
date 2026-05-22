@@ -80,14 +80,6 @@ export function isShaderCompileError(err) {
 }
 
 export const CLOUD_PROVIDERS = {
-  pollinations: {
-    name: "Pollinations (без ключа)",
-    baseUrl: "https://text.pollinations.ai/openai",
-    keysUrl: null,
-    needsKey: false,
-    models: ["openai", "openai-fast"],
-    defaultModel: "openai",
-  },
   openrouter: {
     name: "OpenRouter",
     baseUrl: "https://openrouter.ai/api/v1",
@@ -143,6 +135,18 @@ export const CLOUD_PROVIDERS = {
     ],
     defaultModel: "Qwen/Qwen2.5-Coder-32B-Instruct",
     needsKey: true,
+  },
+  pollinations: {
+    // Listed last and clearly labelled because the upstream currently
+    // refuses browser-origin requests — it answers them with a canned
+    // "upgrade to our paid product" notice. A future serverless proxy
+    // could revive it; keeping the config for that path.
+    name: "Pollinations (без ключа, может не работать)",
+    baseUrl: "https://text.pollinations.ai",
+    keysUrl: null,
+    needsKey: false,
+    models: ["openai-fast", "gpt-oss-20b"],
+    defaultModel: "openai-fast",
   },
   custom: {
     name: "Свой URL",
@@ -322,14 +326,15 @@ class CloudBackend {
       );
     }
     // Some no-key providers (Pollinations) don't expose /models. Probe with
-    // a 1-token chat instead so the test is meaningful.
+    // a 1-token chat at the working root endpoint instead.
     if (this.config.providerKey === "pollinations") {
-      const probe = await fetch(`${this.config.baseUrl}/chat/completions`, {
+      const probe = await fetch(`${this.config.baseUrl}/`, {
         method: "POST",
         headers: this._headers(),
         body: JSON.stringify({
           model: this.config.model,
           messages: [{ role: "user", content: "ping" }],
+          reasoning_effort: "low",
           max_tokens: 1,
           stream: false,
         }),
@@ -357,7 +362,14 @@ class CloudBackend {
       stream = true,
     } = opts || {};
 
-    const url = `${this.config.baseUrl}/chat/completions`;
+    // Most providers expose OpenAI-style /chat/completions. Pollinations'
+    // "/openai" path is cached server-side to return a canned deprecation
+    // notice, so we POST to the root instead, which still runs real
+    // inference and accepts the same body shape.
+    const url =
+      this.config.providerKey === "pollinations"
+        ? `${this.config.baseUrl}/`
+        : `${this.config.baseUrl}/chat/completions`;
     const body = {
       model: this.config.model,
       messages,
@@ -366,6 +378,12 @@ class CloudBackend {
       max_tokens,
       stream,
     };
+    // Pollinations serves GPT-OSS-20B, a reasoning model that wastes a lot
+    // of tokens on internal CoT by default — give it a hint to keep the
+    // reasoning short so the user sees an answer quickly.
+    if (this.config.providerKey === "pollinations") {
+      body.reasoning_effort = "low";
+    }
 
     const res = await fetch(url, {
       method: "POST",

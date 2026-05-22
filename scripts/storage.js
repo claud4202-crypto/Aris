@@ -32,16 +32,18 @@ export const Storage = { read, write, remove };
 const SETTINGS_KEY = "settings";
 
 export const DEFAULT_SETTINGS = {
-  // Default to the cloud key-free provider so the app works out of the box
-  // with zero setup. Users can switch to local WebLLM or a paid provider
-  // through Settings.
-  mode: "cloud", // "local" | "cloud"
+  // Default to local WebLLM so the app is key-free out of the box. The
+  // user only needs WebGPU — model weights are downloaded once and cached.
+  // (Pollinations would have been a zero-setup cloud alternative, but their
+  // API now rejects browser-origin requests with a canned deprecation
+  // notice, so we no longer route to it by default.)
+  mode: "local", // "local" | "cloud"
   localModel: "Llama-3.2-3B-Instruct-q4f16_1-MLC",
   cloud: {
-    providerKey: "pollinations",
-    baseUrl: "https://text.pollinations.ai/openai",
+    providerKey: "openrouter",
+    baseUrl: "https://openrouter.ai/api/v1",
     apiKey: "",
-    model: "openai",
+    model: "qwen/qwen-2.5-coder-32b-instruct",
   },
   generation: {
     temperature: 0.3,
@@ -63,17 +65,16 @@ export function loadSettings() {
     cloud: { ...DEFAULT_SETTINGS.cloud, ...(s.cloud || {}) },
     generation: { ...DEFAULT_SETTINGS.generation, ...(s.generation || {}) },
   };
-  // Migration for users with leftover settings from before Pollinations
-  // existed: if the saved cloud config is still the old "openrouter / no
-  // key" stub (i.e. they never really configured anything), point it at
-  // the new key-free default so the app just works after refresh.
+  // Migration: an earlier dev build defaulted to Pollinations as a
+  // key-free cloud provider. Their API has since started gating on the
+  // Origin header and only returns a canned deprecation notice to the
+  // browser, so we move those users back to the local key-free path.
   const cloud = merged.cloud;
-  if (cloud.providerKey === "openrouter" && !cloud.apiKey) {
-    cloud.providerKey = "pollinations";
-    cloud.baseUrl = "https://text.pollinations.ai/openai";
-    cloud.model = "openai";
-    // Force cloud mode since local is also likely "not loaded" for these users.
-    merged.mode = "cloud";
+  if (cloud.providerKey === "pollinations" && !cloud.apiKey) {
+    cloud.providerKey = "openrouter";
+    cloud.baseUrl = "https://openrouter.ai/api/v1";
+    cloud.model = "qwen/qwen-2.5-coder-32b-instruct";
+    merged.mode = "local";
   }
   return merged;
 }
