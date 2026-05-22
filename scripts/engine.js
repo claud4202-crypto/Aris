@@ -8,24 +8,32 @@ const WEBLLM_CDN = "https://esm.run/@mlc-ai/web-llm";
  * values from prebuiltAppConfig — keep them in sync with the WebLLM release.
  * Approx VRAM is just a hint to help the user pick.
  */
+/*
+ * IMPORTANT: order matters — the first item is the default. Models known to
+ * compile on the broadest set of WebGPU implementations (older Intel iGPUs,
+ * older Chrome/Edge builds, mobile) come FIRST. The Qwen2.5-Coder family
+ * gives the best coding quality but uses ops that some drivers reject with
+ * an "Invalid ShaderModule" error during pipeline compilation — it stays in
+ * the list (clearly labelled), but is not the default.
+ */
 export const LOCAL_MODELS = [
   {
-    id: "Qwen2.5-Coder-7B-Instruct-q4f16_1-MLC",
-    label: "Qwen2.5-Coder 7B (мощная, для кода) — ~4 ГБ",
-    vram: 6,
-    coding: true,
-  },
-  {
-    id: "Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC",
-    label: "Qwen2.5-Coder 1.5B (лёгкая, для кода) — ~1 ГБ",
-    vram: 2,
-    coding: true,
-  },
-  {
-    id: "Qwen2.5-Coder-3B-Instruct-q4f16_1-MLC",
-    label: "Qwen2.5-Coder 3B (баланс, для кода) — ~2 ГБ",
+    id: "Llama-3.2-3B-Instruct-q4f16_1-MLC",
+    label: "Llama 3.2 3B Instruct (совместимая, стартовый выбор) — ~1.8 ГБ",
     vram: 3,
-    coding: true,
+    coding: false,
+  },
+  {
+    id: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+    label: "Llama 3.2 1B (самая лёгкая, совместимая) — ~0.7 ГБ",
+    vram: 1,
+    coding: false,
+  },
+  {
+    id: "Phi-3.5-mini-instruct-q4f16_1-MLC",
+    label: "Phi-3.5 mini 3.8B (совместимая, быстрая) — ~2.4 ГБ",
+    vram: 3,
+    coding: false,
   },
   {
     id: "Llama-3.1-8B-Instruct-q4f32_1-MLC",
@@ -34,18 +42,42 @@ export const LOCAL_MODELS = [
     coding: false,
   },
   {
+    id: "Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC",
+    label: "Qwen2.5-Coder 1.5B (лучше для кода, нужен свежий WebGPU) — ~1 ГБ",
+    vram: 2,
+    coding: true,
+  },
+  {
+    id: "Qwen2.5-Coder-3B-Instruct-q4f16_1-MLC",
+    label: "Qwen2.5-Coder 3B (баланс, нужен свежий WebGPU) — ~2 ГБ",
+    vram: 3,
+    coding: true,
+  },
+  {
+    id: "Qwen2.5-Coder-7B-Instruct-q4f16_1-MLC",
+    label: "Qwen2.5-Coder 7B (самая мощная локальная для кода) — ~4 ГБ",
+    vram: 6,
+    coding: true,
+  },
+  {
     id: "Qwen2.5-7B-Instruct-q4f16_1-MLC",
     label: "Qwen2.5 7B Instruct (универсальная) — ~4 ГБ",
     vram: 6,
     coding: false,
   },
-  {
-    id: "Phi-3.5-mini-instruct-q4f16_1-MLC",
-    label: "Phi-3.5 mini (3.8B, быстрая) — ~2.4 ГБ",
-    vram: 3,
-    coding: false,
-  },
 ];
+
+/**
+ * Detect WebGPU shader-compile failures (driver/op incompatibility).
+ * The exact message varies, but "Invalid ShaderModule" / "validating compute
+ * stage" / "entryPoint" is the signature.
+ */
+export function isShaderCompileError(err) {
+  const msg = String(err?.message || err || "");
+  return /Invalid ShaderModule|compute stage|entryPoint|WGSL|shader module/i.test(
+    msg
+  );
+}
 
 export const CLOUD_PROVIDERS = {
   openrouter: {

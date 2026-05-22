@@ -33,7 +33,9 @@ const SETTINGS_KEY = "settings";
 
 export const DEFAULT_SETTINGS = {
   mode: "local", // "local" | "cloud"
-  localModel: "Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC",
+  // Defaults to a broadly compatible Llama model. Qwen2.5-Coder gives
+  // better code quality but uses ops that some WebGPU drivers reject.
+  localModel: "Llama-3.2-3B-Instruct-q4f16_1-MLC",
   cloud: {
     providerKey: "openrouter",
     baseUrl: "https://openrouter.ai/api/v1",

@@ -6,6 +6,7 @@ import {
   CLOUD_PROVIDERS,
   DEFAULT_SYSTEM_PROMPT,
   isWebGpuSupported,
+  isShaderCompileError,
 } from "./engine.js";
 import {
   loadSettings,
@@ -577,8 +578,39 @@ async function loadLocalModel() {
     toast("Модель загружена");
     refreshHints();
   } catch (err) {
-    els.localProgressText.textContent = `Ошибка: ${err.message || err}`;
-    toast(err.message || String(err), true);
+    if (isShaderCompileError(err)) {
+      const compatible = LOCAL_MODELS.filter((m) => !m.coding)[0];
+      const tryDifferent =
+        compatible && compatible.id !== id ? compatible : null;
+      els.localProgressText.innerHTML = `
+        <strong>Не удалось скомпилировать GPU-шейдер этой модели.</strong><br>
+        Драйвер / версия WebGPU в браузере не поддерживает операции, которые использует эта модель
+        (это свойство вашего железа/браузера, не приложения).<br>
+        ${tryDifferent
+          ? `Попробуйте совместимую модель: <em>${tryDifferent.label}</em>, или перейдите на <strong>Облачный API</strong>.`
+          : `Перейдите на <strong>Облачный API</strong> — там ограничения WebGPU не имеют значения.`}
+        <br>
+        <button type="button" class="btn btn--accent" data-action="goto-cloud" style="margin-top:8px">Открыть Облачный API</button>
+        ${tryDifferent
+          ? ` <button type="button" class="btn" data-action="try-compatible" style="margin-top:8px">Скачать совместимую</button>`
+          : ""}
+      `;
+      els.localProgressText
+        .querySelector('[data-action="goto-cloud"]')
+        ?.addEventListener("click", () => setTab("cloud"));
+      els.localProgressText
+        .querySelector('[data-action="try-compatible"]')
+        ?.addEventListener("click", () => {
+          if (tryDifferent) {
+            els.localModelSelect.value = tryDifferent.id;
+            loadLocalModel();
+          }
+        });
+      toast("Несовместимая WebGPU-реализация — перейдите на Cloud API", true);
+    } else {
+      els.localProgressText.textContent = `Ошибка: ${err.message || err}`;
+      toast(err.message || String(err), true);
+    }
   } finally {
     els.loadLocalBtn.disabled = false;
   }
