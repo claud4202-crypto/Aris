@@ -32,15 +32,16 @@ export const Storage = { read, write, remove };
 const SETTINGS_KEY = "settings";
 
 export const DEFAULT_SETTINGS = {
-  mode: "local", // "local" | "cloud"
-  // Defaults to a broadly compatible Llama model. Qwen2.5-Coder gives
-  // better code quality but uses ops that some WebGPU drivers reject.
+  // Default to the cloud key-free provider so the app works out of the box
+  // with zero setup. Users can switch to local WebLLM or a paid provider
+  // through Settings.
+  mode: "cloud", // "local" | "cloud"
   localModel: "Llama-3.2-3B-Instruct-q4f16_1-MLC",
   cloud: {
-    providerKey: "openrouter",
-    baseUrl: "https://openrouter.ai/api/v1",
+    providerKey: "pollinations",
+    baseUrl: "https://text.pollinations.ai/openai",
     apiKey: "",
-    model: "qwen/qwen-2.5-coder-32b-instruct",
+    model: "openai",
   },
   generation: {
     temperature: 0.3,
@@ -56,12 +57,25 @@ export function loadSettings() {
   const s = read(SETTINGS_KEY, null);
   if (!s) return structuredClone(DEFAULT_SETTINGS);
   // merge with defaults so newer fields appear
-  return {
+  const merged = {
     ...DEFAULT_SETTINGS,
     ...s,
     cloud: { ...DEFAULT_SETTINGS.cloud, ...(s.cloud || {}) },
     generation: { ...DEFAULT_SETTINGS.generation, ...(s.generation || {}) },
   };
+  // Migration for users with leftover settings from before Pollinations
+  // existed: if the saved cloud config is still the old "openrouter / no
+  // key" stub (i.e. they never really configured anything), point it at
+  // the new key-free default so the app just works after refresh.
+  const cloud = merged.cloud;
+  if (cloud.providerKey === "openrouter" && !cloud.apiKey) {
+    cloud.providerKey = "pollinations";
+    cloud.baseUrl = "https://text.pollinations.ai/openai";
+    cloud.model = "openai";
+    // Force cloud mode since local is also likely "not loaded" for these users.
+    merged.mode = "cloud";
+  }
+  return merged;
 }
 
 export function saveSettings(s) {

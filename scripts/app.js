@@ -7,6 +7,7 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   isWebGpuSupported,
   isShaderCompileError,
+  providerNeedsKey,
 } from "./engine.js";
 import {
   loadSettings,
@@ -80,6 +81,8 @@ const els = {
   providerSelect: $("#providerSelect"),
   baseUrlInput: $("#baseUrlInput"),
   apiKeyInput: $("#apiKeyInput"),
+  apiKeyField: $("#apiKeyField"),
+  apiKeyHelp: $("#apiKeyHelp"),
   cloudModelInput: $("#cloudModelInput"),
   cloudModelList: $("#cloudModelList"),
   testApiBtn: $("#testApiBtn"),
@@ -441,12 +444,27 @@ function syncProviderFields(providerKey, initial = false) {
   } else {
     els.baseUrlInput.value = p.baseUrl;
     els.cloudModelInput.value = p.defaultModel || "";
+    if (!providerNeedsKey(providerKey)) {
+      // Clear stale key when switching to a no-key provider so the field
+      // doesn't look misleading.
+      els.apiKeyInput.value = "";
+    }
   }
   els.cloudModelList.innerHTML = "";
   for (const m of p.models) {
     const o = document.createElement("option");
     o.value = m;
     els.cloudModelList.appendChild(o);
+  }
+  const needsKey = providerNeedsKey(providerKey);
+  if (els.apiKeyField) {
+    els.apiKeyField.hidden = !needsKey;
+  }
+  els.apiKeyInput.required = needsKey;
+  if (els.apiKeyHelp) {
+    els.apiKeyHelp.textContent = needsKey
+      ? "Хранится только в вашем браузере (localStorage)."
+      : "Этому провайдеру ключ не нужен.";
   }
 }
 
@@ -487,9 +505,12 @@ function commitSettings() {
   state.settings.localModel = newLocalModel;
 
   // Cloud
-  state.settings.cloud.providerKey = els.providerSelect.value;
+  const newProviderKey = els.providerSelect.value;
+  state.settings.cloud.providerKey = newProviderKey;
   state.settings.cloud.baseUrl = els.baseUrlInput.value.trim();
-  state.settings.cloud.apiKey = els.apiKeyInput.value.trim();
+  state.settings.cloud.apiKey = providerNeedsKey(newProviderKey)
+    ? els.apiKeyInput.value.trim()
+    : "";
   state.settings.cloud.model = els.cloudModelInput.value.trim();
 
   // Generation
@@ -499,14 +520,16 @@ function commitSettings() {
   state.settings.generation.max_tokens = parseInt(els.maxTokensInput.value, 10);
   state.settings.generation.stream = els.streamInput.checked;
 
-  // Mode is chosen implicitly: cloud if there's an API key, else local.
-  // But honor explicit existing mode unless cloud key is freshly entered.
-  if (
-    state.settings.cloud.apiKey &&
-    state.settings.cloud.baseUrl &&
-    state.settings.cloud.model
-  ) {
-    // keep existing mode if user already toggled; default to cloud if previously empty
+  // Mode is chosen implicitly:
+  //  - if cloud config is complete (key-free providers count when baseUrl+model
+  //    are set), stay/switch to cloud;
+  //  - otherwise fall back to local.
+  const cloudComplete =
+    !!state.settings.cloud.baseUrl &&
+    !!state.settings.cloud.model &&
+    (!providerNeedsKey(state.settings.cloud.providerKey) ||
+      !!state.settings.cloud.apiKey);
+  if (cloudComplete) {
     if (!state.engine.cloud.ready()) state.settings.mode = "cloud";
   } else if (state.engine.mode === "cloud") {
     state.settings.mode = "local";
@@ -651,9 +674,16 @@ function refreshHints() {
       ? `Локальная модель загружена · ${state.engine.local.modelId}`
       : "Локальный режим. Откройте Настройки → «Загрузить модель».";
   } else {
-    els.engineHint.textContent = state.engine.ready()
-      ? `Облачный API · ${state.engine.cloud.config.model}`
-      : "Облачный режим: укажите API-ключ в Настройках.";
+    if (state.engine.ready()) {
+      els.engineHint.textContent = `Облачный API · ${state.engine.cloud.config.model}`;
+    } else {
+      const needsKey = providerNeedsKey(
+        state.engine.cloud.config?.providerKey
+      );
+      els.engineHint.textContent = needsKey
+        ? "Облачный режим: укажите API-ключ в Настройках."
+        : "Облачный режим: укажите модель/URL провайдера в Настройках.";
+    }
   }
 }
 

@@ -80,6 +80,14 @@ export function isShaderCompileError(err) {
 }
 
 export const CLOUD_PROVIDERS = {
+  pollinations: {
+    name: "Pollinations (без ключа)",
+    baseUrl: "https://text.pollinations.ai/openai",
+    keysUrl: null,
+    needsKey: false,
+    models: ["openai", "openai-fast"],
+    defaultModel: "openai",
+  },
   openrouter: {
     name: "OpenRouter",
     baseUrl: "https://openrouter.ai/api/v1",
@@ -94,6 +102,7 @@ export const CLOUD_PROVIDERS = {
       "meta-llama/llama-3.3-70b-instruct",
     ],
     defaultModel: "qwen/qwen-2.5-coder-32b-instruct",
+    needsKey: true,
   },
   openai: {
     name: "OpenAI",
@@ -101,6 +110,7 @@ export const CLOUD_PROVIDERS = {
     keysUrl: "https://platform.openai.com/api-keys",
     models: ["gpt-4o-mini", "gpt-4o", "o1-mini", "o1"],
     defaultModel: "gpt-4o-mini",
+    needsKey: true,
   },
   deepseek: {
     name: "DeepSeek",
@@ -108,6 +118,7 @@ export const CLOUD_PROVIDERS = {
     keysUrl: "https://platform.deepseek.com/api_keys",
     models: ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
     defaultModel: "deepseek-coder",
+    needsKey: true,
   },
   groq: {
     name: "Groq",
@@ -119,6 +130,7 @@ export const CLOUD_PROVIDERS = {
       "mixtral-8x7b-32768",
     ],
     defaultModel: "llama-3.3-70b-versatile",
+    needsKey: true,
   },
   together: {
     name: "Together AI",
@@ -130,15 +142,23 @@ export const CLOUD_PROVIDERS = {
       "meta-llama/Llama-3.3-70B-Instruct-Turbo",
     ],
     defaultModel: "Qwen/Qwen2.5-Coder-32B-Instruct",
+    needsKey: true,
   },
   custom: {
     name: "Свой URL",
     baseUrl: "",
     keysUrl: null,
+    needsKey: false,
     models: [],
     defaultModel: "",
   },
 };
+
+export function providerNeedsKey(providerKey) {
+  const p = CLOUD_PROVIDERS[providerKey];
+  // default to requiring a key for unknown providers (safer)
+  return p ? p.needsKey !== false : true;
+}
 
 export const DEFAULT_SYSTEM_PROMPT =
   "Ты Aris — точный и полезный AI-ассистент по программированию. " +
@@ -270,14 +290,19 @@ class CloudBackend {
   }
 
   ready() {
-    return !!(this.config?.baseUrl && this.config?.apiKey && this.config?.model);
+    if (!this.config?.baseUrl || !this.config?.model) return false;
+    // Some providers (e.g. Pollinations) don't require an API key.
+    if (providerNeedsKey(this.config.providerKey)) {
+      return !!this.config.apiKey;
+    }
+    return true;
   }
 
   _headers() {
-    const h = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${this.config.apiKey}`,
-    };
+    const h = { "Content-Type": "application/json" };
+    if (this.config.apiKey) {
+      h.Authorization = `Bearer ${this.config.apiKey}`;
+    }
     if (this.config.providerKey === "openrouter") {
       // OpenRouter recommends these. Use page origin where available.
       try {
@@ -289,9 +314,34 @@ class CloudBackend {
   }
 
   async ping() {
-    if (!this.ready()) throw new Error("Не заполнены baseUrl/apiKey/model.");
-    const url = `${this.config.baseUrl}/models`;
-    const res = await fetch(url, { headers: this._headers() });
+    if (!this.ready()) {
+      throw new Error(
+        providerNeedsKey(this.config?.providerKey)
+          ? "Не заполнены baseUrl / API-ключ / модель."
+          : "Не заполнены baseUrl / модель."
+      );
+    }
+    // Some no-key providers (Pollinations) don't expose /models. Probe with
+    // a 1-token chat instead so the test is meaningful.
+    if (this.config.providerKey === "pollinations") {
+      const probe = await fetch(`${this.config.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: this._headers(),
+        body: JSON.stringify({
+          model: this.config.model,
+          messages: [{ role: "user", content: "ping" }],
+          max_tokens: 1,
+          stream: false,
+        }),
+      });
+      if (!probe.ok) {
+        throw new Error(`HTTP ${probe.status}: ${await probe.text()}`);
+      }
+      return true;
+    }
+    const res = await fetch(`${this.config.baseUrl}/models`, {
+      headers: this._headers(),
+    });
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     }
