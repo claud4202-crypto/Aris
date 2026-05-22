@@ -519,23 +519,57 @@ function commitSettings() {
   toast("Настройки сохранены");
 }
 
+// Translate WebLLM's English status strings to friendly Russian.
+function localizeProgress(text, pct, elapsedSec) {
+  if (!text) return `Загрузка модели… ${pct}%`;
+  let t = text
+    .replace(/^Start to fetch params.*/i, "Началась загрузка весов модели…")
+    .replace(/Fetching param cache\s*\[(\d+)\/(\d+)\]:?.*?MB fetched\.?\s*(\d+)% completed.*/i,
+             "Скачивается фрагмент $1/$2 · $3% общего объёма")
+    .replace(/Loading model from cache.*/i, "Загрузка модели из кеша браузера…")
+    .replace(/Loading model from\s*\S+.*/i, "Загрузка модели…")
+    .replace(/Finish loading on .*?cuda.*$/i, "Модель загружена на GPU")
+    .replace(/Finish loading on .*$/i, "Модель загружена")
+    .replace(/Loading GPU shader modules.*/i, "Сборка GPU-шейдеров…")
+    .replace(/Compile\b.*?modules?/i, "Компиляция GPU-модулей")
+    .replace(/^\s+|\s+$/g, "");
+  // Always append percentage so the user sees movement.
+  if (!/\d+%/.test(t)) t += ` · ${pct}%`;
+  if (elapsedSec > 1) t += `  •  прошло ${formatDuration(elapsedSec)}`;
+  return t;
+}
+
+function formatDuration(s) {
+  s = Math.round(s);
+  if (s < 60) return `${s} с`;
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m} м${sec ? " " + sec + " с" : ""}`;
+}
+
 async function loadLocalModel() {
   if (!isWebGpuSupported()) {
     toast("WebGPU не поддерживается этим браузером", true);
     return;
   }
   const id = els.localModelSelect.value;
+  const meta = LOCAL_MODELS.find((m) => m.id === id);
+  const sizeLabel = meta?.label?.match(/~[\d.]+\s*ГБ/i)?.[0] || "";
   els.loadLocalBtn.disabled = true;
   els.localProgress.hidden = false;
   els.localProgressBar.style.width = "0%";
-  els.localProgressText.textContent = "Запуск загрузки…";
+  els.localProgressText.textContent =
+    `Подготовка к загрузке… ${sizeLabel ? "(" + sizeLabel + ")" : ""}`;
+  const startedAt = performance.now();
   try {
     await state.engine.loadLocal(id, (r) => {
-      const pct = Math.round((r.progress || 0) * 100);
+      const pct = Math.max(0, Math.min(100, Math.round((r.progress || 0) * 100)));
+      const elapsed = (performance.now() - startedAt) / 1000;
       els.localProgressBar.style.width = pct + "%";
-      els.localProgressText.textContent =
-        r.text || `Загрузка модели… ${pct}%`;
+      els.localProgressText.textContent = localizeProgress(r.text, pct, elapsed);
     });
+    els.localProgressBar.style.width = "100%";
+    els.localProgressText.textContent = "Модель готова к работе · 100%";
     state.settings.mode = "local";
     state.settings.localModel = id;
     state.engine.setMode("local");
