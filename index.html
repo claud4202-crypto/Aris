@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0b0d12" />
+    <title>Aris — AI чат-бот для кода</title>
+    <meta
+      name="description"
+      content="Aris — AI чат-бот для программирования. Локальная модель в браузере (WebLLM) или мощные облачные модели через OpenAI-совместимый API."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles/main.css" />
+    <link
+      rel="preconnect"
+      href="https://huggingface.co"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="preconnect"
+      href="https://raw.githubusercontent.com"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <div class="app" id="app">
+      <aside class="sidebar" id="sidebar" aria-label="Чаты и настройки">
+        <div class="sidebar__brand">
+          <span class="sidebar__logo" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="28" height="28">
+              <defs>
+                <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#7c5cff" />
+                  <stop offset="100%" stop-color="#22d3ee" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M16 3l11 24h-5.6l-2.1-5h-7l-2.1 5H4L16 3zm0 8.4L13.7 17h4.6L16 11.4z"
+                fill="url(#g1)"
+              />
+            </svg>
+          </span>
+          <div class="sidebar__title">
+            <strong>Aris</strong>
+            <span class="sidebar__subtitle">AI · код · чат</span>
+          </div>
+          <button
+            class="icon-btn sidebar__close"
+            id="sidebarClose"
+            aria-label="Закрыть боковую панель"
+            title="Закрыть"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                d="M6 6l12 12M18 6L6 18"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                fill="none"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <button class="btn btn--primary sidebar__new" id="newChatBtn">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path
+              d="M12 5v14M5 12h14"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              fill="none"
+            />
+          </svg>
+          <span>Новый чат</span>
+        </button>
+
+        <nav class="chats" id="chatList" aria-label="Список чатов"></nav>
+
+        <div class="sidebar__footer">
+          <button class="icon-btn" id="themeBtn" title="Тема" aria-label="Тема">
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              aria-hidden="true"
+              class="icon-theme"
+            >
+              <path
+                d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+          <button
+            class="icon-btn"
+            id="settingsBtn"
+            title="Настройки"
+            aria-label="Настройки"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4a7.5 7.5 0 0 0-.1-1.3l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-2.2-1.3L16.3 2h-4l-.4 2.4a7.6 7.6 0 0 0-2.2 1.3l-2.4-1-2 3.4 2 1.6a7.5 7.5 0 0 0 0 2.6l-2 1.6 2 3.4 2.4-1a7.6 7.6 0 0 0 2.2 1.3l.4 2.4h4l.4-2.4a7.6 7.6 0 0 0 2.2-1.3l2.4 1 2-3.4-2-1.6c.1-.4.1-.9.1-1.3z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+          <a
+            class="icon-btn"
+            href="https://github.com/claud4202-crypto/Aris"
+            target="_blank"
+            rel="noopener"
+            title="GitHub"
+            aria-label="GitHub"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.3 1.8 1.3 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.4-1.3-5.4-5.9 0-1.3.5-2.4 1.3-3.2-.1-.3-.6-1.6.1-3.3 0 0 1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 3 .1 3.3.8.8 1.3 1.9 1.3 3.2 0 4.6-2.8 5.6-5.4 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"
+                fill="currentColor"
+              />
+            </svg>
+          </a>
+        </div>
+      </aside>
+
+      <main class="main" aria-label="Окно чата">
+        <header class="topbar">
+          <button
+            class="icon-btn topbar__menu"
+            id="sidebarOpen"
+            aria-label="Открыть боковую панель"
+            title="Меню"
+          >
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+              <path
+                d="M3 6h18M3 12h18M3 18h18"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                fill="none"
+              />
+            </svg>
+          </button>
+
+          <div class="topbar__title">
+            <h1 id="chatTitle">Новый чат</h1>
+            <span class="badge" id="engineBadge">Локальная · WebLLM</span>
+          </div>
+
+          <div class="topbar__actions">
+            <button
+              class="icon-btn"
+              id="exportBtn"
+              title="Экспорт чата"
+              aria-label="Экспорт чата"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  fill="none"
+                />
+              </svg>
+            </button>
+            <button
+              class="icon-btn"
+              id="clearBtn"
+              title="Очистить чат"
+              aria-label="Очистить чат"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3 6h18M8 6V4h8v2m1 0l-1 14H7L6 6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  fill="none"
+                />
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <section class="messages" id="messages" aria-live="polite">
+          <div class="welcome" id="welcome">
+            <h2>Привет! Я Aris — AI-помощник по коду.</h2>
+            <p class="welcome__sub">
+              Выберите режим в настройках: локальная модель в браузере
+              (бесплатно, приватно) или мощная облачная модель по API-ключу.
+            </p>
+            <div class="suggestions">
+              <button class="chip" data-prompt="Напиши на Python функцию, которая возвращает n-ое число Фибоначчи за O(log n) с быстрым возведением матрицы в степень. Добавь юнит-тесты.">
+                Фибоначчи за O(log n) на Python
+              </button>
+              <button class="chip" data-prompt="Объясни, как работает event loop в Node.js, с диаграммой стадий и примером кода.">
+                Event loop в Node.js
+              </button>
+              <button class="chip" data-prompt="Найди баг в коде:\n```js\nfunction sum(arr) {\n  let s;\n  for (let i = 0; i <= arr.length; i++) s += arr[i];\n  return s;\n}\n```">
+                Найди баг в JS-коде
+              </button>
+              <button class="chip" data-prompt="Сделай React-компонент Modal с фокус-ловушкой, закрытием по Esc и порталом в document.body. TypeScript.">
+                React Modal на TS
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <div class="status" id="status" hidden></div>
+
+        <form class="composer" id="composer" autocomplete="off">
+          <div class="composer__row">
+            <textarea
+              id="input"
+              class="composer__input"
+              placeholder="Спросите что-нибудь о коде…  (Shift+Enter — перенос строки)"
+              rows="1"
+              aria-label="Ваше сообщение"
+            ></textarea>
+            <button
+              type="button"
+              class="icon-btn composer__stop"
+              id="stopBtn"
+              title="Остановить"
+              aria-label="Остановить генерацию"
+              hidden
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                aria-hidden="true"
+              >
+                <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+              </svg>
+            </button>
+            <button
+              type="submit"
+              class="btn btn--primary composer__send"
+              id="sendBtn"
+              title="Отправить (Enter)"
+              aria-label="Отправить"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3 11l18-8-8 18-2-8-8-2z"
+                  fill="currentColor"
+                />
+              </svg>
+              <span>Отправить</span>
+            </button>
+          </div>
+          <div class="composer__hint">
+            <span id="engineHint"
+              >Модель не загружена. Откройте Настройки и выберите режим.</span
+            >
+          </div>
+        </form>
+      </main>
+    </div>
+
+    <!-- ===== Settings modal ===== -->
+    <dialog class="modal" id="settingsModal" aria-label="Настройки">
+      <form method="dialog" class="modal__inner">
+        <header class="modal__header">
+          <h2>Настройки</h2>
+          <button
+            type="button"
+            class="icon-btn"
+            id="settingsClose"
+            aria-label="Закрыть"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              aria-hidden="true"
+            >
+              <path
+                d="M6 6l12 12M18 6L6 18"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                fill="none"
+              />
+            </svg>
+          </button>
+        </header>
+
+        <div class="modal__body">
+          <div class="tabs" role="tablist">
+            <button
+              type="button"
+              class="tab is-active"
+              data-tab="local"
+              role="tab"
+            >
+              Локальная модель (WebLLM)
+            </button>
+            <button type="button" class="tab" data-tab="cloud" role="tab">
+              Облачный API
+            </button>
+            <button type="button" class="tab" data-tab="generation" role="tab">
+              Генерация
+            </button>
+          </div>
+
+          <section class="tab-panel is-active" data-panel="local">
+            <p class="help">
+              Модель скачивается один раз и запускается прямо в браузере
+              (WebGPU). Ничего не отправляется на сервер. Чем мощнее устройство,
+              тем большую модель можно выбрать.
+            </p>
+            <label class="field">
+              <span>Модель</span>
+              <select id="localModelSelect"></select>
+            </label>
+            <div class="row">
+              <button type="button" class="btn" id="loadLocalBtn">
+                Загрузить модель
+              </button>
+              <button type="button" class="btn btn--ghost" id="unloadLocalBtn">
+                Выгрузить
+              </button>
+            </div>
+            <div class="progress" id="localProgress" hidden>
+              <div class="progress__bar" id="localProgressBar"></div>
+              <div class="progress__text" id="localProgressText"></div>
+            </div>
+            <p class="warn" id="webgpuWarn" hidden>
+              WebGPU недоступен в этом браузере. Используйте Chrome/Edge 113+
+              или включите экспериментальные флаги. Либо подключите облачный
+              API.
+            </p>
+          </section>
+
+          <section class="tab-panel" data-panel="cloud">
+            <p class="help">
+              Подключите любой OpenAI-совместимый API. Рекомендуем
+              <a
+                href="https://openrouter.ai/keys"
+                target="_blank"
+                rel="noopener"
+                >OpenRouter</a
+              >
+              — даёт доступ к мощным моделям для кода (DeepSeek-Coder,
+              Qwen2.5-Coder 32B, Claude, GPT-4o и др.).
+            </p>
+            <label class="field">
+              <span>Провайдер</span>
+              <select id="providerSelect">
+                <option value="openrouter">OpenRouter</option>
+                <option value="openai">OpenAI</option>
+                <option value="deepseek">DeepSeek</option>
+                <option value="groq">Groq</option>
+                <option value="together">Together AI</option>
+                <option value="custom">Другой (свой URL)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Base URL</span>
+              <input
+                id="baseUrlInput"
+                type="url"
+                placeholder="https://openrouter.ai/api/v1"
+              />
+            </label>
+            <label class="field">
+              <span>API Key</span>
+              <input
+                id="apiKeyInput"
+                type="password"
+                placeholder="sk-or-…"
+                autocomplete="off"
+              />
+              <small class="help">Хранится только в вашем браузере (localStorage).</small>
+            </label>
+            <label class="field">
+              <span>Модель</span>
+              <input
+                id="cloudModelInput"
+                type="text"
+                list="cloudModelList"
+                placeholder="qwen/qwen-2.5-coder-32b-instruct"
+              />
+              <datalist id="cloudModelList"></datalist>
+            </label>
+            <div class="row">
+              <button type="button" class="btn" id="testApiBtn">
+                Проверить соединение
+              </button>
+              <span id="apiStatus" class="status-pill"></span>
+            </div>
+          </section>
+
+          <section class="tab-panel" data-panel="generation">
+            <label class="field">
+              <span>Системный промпт</span>
+              <textarea id="systemPromptInput" rows="5"></textarea>
+            </label>
+            <label class="field">
+              <span
+                >Температура: <output id="tempOut">0.3</output></span
+              >
+              <input
+                id="tempInput"
+                type="range"
+                min="0"
+                max="2"
+                step="0.05"
+                value="0.3"
+              />
+            </label>
+            <label class="field">
+              <span
+                >Top-P: <output id="topPOut">0.95</output></span
+              >
+              <input
+                id="topPInput"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.95"
+              />
+            </label>
+            <label class="field">
+              <span>Максимум токенов в ответе</span>
+              <input
+                id="maxTokensInput"
+                type="number"
+                min="64"
+                max="8192"
+                step="64"
+                value="1024"
+              />
+            </label>
+            <label class="field field--row">
+              <input id="streamInput" type="checkbox" checked />
+              <span>Стриминг ответа (по токенам)</span>
+            </label>
+          </section>
+        </div>
+
+        <footer class="modal__footer">
+          <button type="button" class="btn btn--ghost" id="settingsCancel">
+            Отмена
+          </button>
+          <button type="button" class="btn btn--primary" id="settingsSave">
+            Сохранить
+          </button>
+        </footer>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="scripts/app.js"></script>
+  </body>
+</html>
